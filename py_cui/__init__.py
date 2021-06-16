@@ -16,7 +16,7 @@ import copy
 import shutil       # We use shutil for getting the terminal dimensions
 import threading    # Threading is used for loading icon popups
 import logging      # Use logging library for debug purposes
-from typing import Callable, Dict, List, Optional,Any, Tuple, Union
+from typing import Callable, Dict, List,Optional, Any, Tuple, Union
 
 # py_cui uses the curses library. On windows this does not exist, but
 # there is a open source windows-curses module that adds curses support
@@ -126,9 +126,9 @@ class PyCUI:
             term_size = shutil.get_terminal_size()
             height  = term_size.lines
             width   = term_size.columns
-        else: #to be changed so that mypy doesn't show errors
-            height  = simulated_terminal[0]
-            width   = simulated_terminal[1]
+        else:
+            height  = self._simulated_terminal[0]
+            width   = self._simulated_terminal[1]
 
         # Init terminal height width. Subtract 4 from height
         # for title/status bar and padding
@@ -151,7 +151,7 @@ class PyCUI:
 
         # Initialize grid, renderer, and widget dict
         self._grid                  = py_cui.grid.Grid(num_rows, num_cols, self._height, self._width, self._logger)
-        self._renderer              = None
+        self._renderer: Optional[py_cui.renderer.Renderer] = None
         self._border_characters     = None
         self._stdscr                = None
         self._widgets               = {} #tobe changed so that mypy doesn't show errors
@@ -167,7 +167,7 @@ class PyCUI:
         self._loading               = False
         self._stopped               = False
         self._post_loading_callback = None
-        self._on_draw_update_func   = None
+        self._on_draw_update_func: Optional[Callable[[],Any]] = None
 
         # Top level keybindings. Exit key is 'q' by default
         self._keybindings  = {} #tobe changed so that mypy doesn't show errors
@@ -897,10 +897,13 @@ class PyCUI:
                                                                                    col_start,
                                                                                    row_span,
                                                                                    col_span))
-        return id_list
+        if len(id_list) > 0:
+            return id_list
+        else:
+            return None
 
 
-    def _get_vertical_neighbors(self, widget: py_cui.widgets.Widget, direction) -> Union[List[str],None]:
+    def _get_vertical_neighbors(self, widget: py_cui.widgets.Widget, direction) -> Optional[List[str]]:
         """Gets all vertical (up, down) neighbor widgets
 
         Parameters
@@ -945,12 +948,15 @@ class PyCUI:
                                                                                    col_start,
                                                                                    row_span,
                                                                                    col_span))
-        return id_list
+        if len(id_list) > 0:
+            return id_list
+        else:
+            return None
 
     # CUI status functions. Used to switch between widgets, set the mode, and
     # identify neighbors for overview mode
 
-    def _check_if_neighbor_exists(self, direction) -> str:
+    def _check_if_neighbor_exists(self, direction) -> Optional[str]:
         """Function that checks if widget has neighbor in specified cell.
 
         Used for navigating CUI, as arrow keys find the immediate neighbor
@@ -969,20 +975,19 @@ class PyCUI:
         start_widget                = self.get_widgets()[self._selected_widget]
 
         # Find all the widgets in the given row or column
-        neighbors = []
         if direction in [py_cui.keys.KEY_DOWN_ARROW, py_cui.keys.KEY_UP_ARROW]:
             neighbors = self._get_vertical_neighbors(start_widget, direction)
         elif direction in [py_cui.keys.KEY_RIGHT_ARROW, py_cui.keys.KEY_LEFT_ARROW]:
             neighbors = self._get_horizontal_neighbors(start_widget, direction)
 
-        if len(neighbors) == 0:
+        if neighbors is None:
             return None
 
         # We select the best match to jump to (first neighbor)
         return neighbors[0]
 
 
-    def get_selected_widget(self) -> Union['py_cui.widgets.Widget',None]:
+    def get_selected_widget(self) -> Optional[py_cui.widgets.Widget]:
         """Function that gets currently selected widget
 
         Returns
